@@ -1,7 +1,9 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const app = express();
+const prisma = require("../lib/prisma");
 require("dotenv").config();
+app.use(express.json());
 
 app.get("/", (req, res) => res.send("Messaging app is running"));
 
@@ -17,6 +19,32 @@ app.post("/login", (req, res) => {
 
     res.json({ token });
   });
+});
+
+///const users = await prisma.users.findMany();
+///const user = await prisma.users.create({
+//   data: {
+//     username: "Felicia",
+//     password: "password123",
+//   },
+// });
+
+app.post("/register", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const user = await prisma.users.create({
+      data: { username, password },
+    });
+
+    res.status(201).json({
+      id: user.id.toString(),
+      username: user.username,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Could not register user" });
+  }
 });
 
 app.post("/newMessage", verifyToken, (req, res) => {
