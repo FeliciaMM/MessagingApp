@@ -7,18 +7,32 @@ app.use(express.json());
 
 app.get("/", (req, res) => res.send("Messaging app is running"));
 
-app.post("/login", (req, res) => {
-  const user = {
-    id: 1,
-    username: "Felicia",
-  };
-  jwt.sign({ user }, "secretkey", { expiresIn: "30m" }, (err, token) => {
-    if (err) {
-      return res.sendStatus(500);
+app.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res
+        .status(400)
+        .json({ error: "Username and password are required" });
     }
 
-    res.json({ token });
-  });
+    const user = await prisma.users.findFirst({ where: { username } });
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { user: { id: user.id.toString(), username: user.username } },
+      process.env.SECRET_FOR_AUTH,
+    );
+
+    return res.json({ token });
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 ///const users = await prisma.users.findMany();
@@ -47,8 +61,13 @@ app.post("/register", async (req, res) => {
   }
 });
 
-app.post("/newMessage", verifyToken, (req, res) => {
-  jwt.verify(req.token, "secretkey", (err, authData) => {
+app.post("/newMessage", verifyToken, async (req, res) => {
+  const body = { username, text };
+  const newMessage = await prisma.messages.create({
+    username,
+    text,
+  });
+  jwt.verify(req.token, process.env.SECRET_FOR_AUTH, (err, authData) => {
     if (err) {
       res.sendStatus(403);
     } else {
@@ -76,5 +95,5 @@ app.listen(process.env.PORT, (error) => {
   if (error) {
     console.log("Eroare");
   }
-  console.log(`App runnianag on port =${process.env.PORT}`);
+  console.log(`App runnianag on port = ${process.env.PORT}`);
 });
